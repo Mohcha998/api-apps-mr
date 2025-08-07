@@ -1,0 +1,23 @@
+App:
+  Name: "api-apps"
+  Version: "v1"
+  Port: ":8080"
+  Environment:
+  Timeout: 10
+
+Mysql:
+  Host: "127.0.0.1"
+  Port: "3306"
+  User: "root"
+  Password:
+  DbName: "apps"
+  MaxIdleConnection: 10
+  MaxOpenConnection: 10
+
+Redis:
+  Host: "127.0.0.1"
+  Port: "6379"
+  Password:
+
+Jwt:
+  SecretKey: 9d17321b896af6fe314023e5605e2b20
