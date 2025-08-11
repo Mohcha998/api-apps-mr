@@ -8,21 +8,24 @@ import (
 	"log"
 )
 
-   func main() {
+func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
 	mysql, err := db.NewMysqlConnection(cfg)
 	if err != nil {
-		log.Println(err)
+		log.Fatalf("failed to connect mysql: %v", err)
 	}
 
 	redis := cache.NewRedisConnection(cfg)
+	if redis == nil {
+		log.Fatalf("failed to connect redis")
+	}
 
 	httpServer := server.NewHttpServer(cfg, mysql, redis)
 	if err = httpServer.Run(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("server error: %v", err)
 	}
 }

@@ -11,6 +11,7 @@ type Config struct {
 	Mysql Mysql
 	Redis Redis
 	Jwt   Jwt
+	YouTube YouTube
 }
 
 type App struct {
@@ -39,6 +40,11 @@ type Redis struct {
 
 type Jwt struct {
 	SecretKey string
+}
+
+type YouTube struct {
+	APIKey    string `mapstructure:"APIKey"`
+	ChannelID string `mapstructure:"ChannelID"`
 }
 
 func LoadConfig() (*Config, error) {
