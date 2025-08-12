@@ -4,14 +4,11 @@ import (
 	"apps/config"
 	"apps/internal/infrastructure/db"
 	userRoutes "apps/internal/modules/user/delivery/http/v1"
-	youtubeDeliveryV1 "apps/internal/modules/youtube/delivery/http/v1"
-	youtubeRepo "apps/internal/modules/youtube/repository"
-	youtubeUsecase "apps/internal/modules/youtube/usecase"
+	youtubeRoutes "apps/internal/modules/youtube/delivery/http/v1"
 	"apps/utils/response"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
-	"time"
 )
 
 // server struct menyimpan dependencies server HTTP
@@ -33,16 +30,12 @@ func NewHttpServer(cfg *config.Config, db db.MysqlDBInterface, redis *redis.Clie
 		redis: redis,
 	}
 
-	// Inisialisasi YouTube module
-	youtubeRepo := youtubeRepo.NewYouTubeRepository(cfg.YouTube.APIKey, cfg.YouTube.ChannelID, time.Second*10, redis)
-	youtubeUC := youtubeUsecase.NewYouTubeUsecase(youtubeRepo, time.Second*10)
-	youtubeHandler := youtubeDeliveryV1.NewYouTubeHandler(youtubeUC)
 
 	// Daftarkan route group api/v1
 	v1 := srv.fiber.Group("/api/v1")
 
 	// Register routes YouTube
-	youtubeDeliveryV1.Routes(v1, youtubeHandler)
+	youtubeRoutes.Routes(v1, cfg, db, redis)
 
 	// Register routes User
 	userRoutes.Routes(v1, cfg, db)

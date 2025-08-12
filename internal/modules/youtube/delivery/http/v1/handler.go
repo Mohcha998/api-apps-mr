@@ -1,78 +1,66 @@
 package v1
 
 import (
-	"apps/internal/modules/youtube/usecase"
-	"context"
-	"strconv"
-	"time"
+	"apps/internal/domain"
+	"apps/utils/response"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type YouTubeHandler struct {
-	usecase usecase.YouTubeUsecase
+	YotubeUsecase domain.YouTubeUsecase
 }
 
-func NewYouTubeHandler(u usecase.YouTubeUsecase) *YouTubeHandler {
-	return &YouTubeHandler{usecase: u}
+func NewYouTubeHandler(YotubeUsecase domain.YouTubeUsecase) *YouTubeHandler {
+	return &YouTubeHandler{YotubeUsecase: YotubeUsecase}
 }
 
-func (h *YouTubeHandler) parseForceTTL(c *fiber.Ctx) (bool, time.Duration) {
-	force := c.Query("force") == "true"
-	ttl := 86400 * time.Second
-	if t := c.Query("ttl"); t != "" {
-		if i, err := strconv.Atoi(t); err == nil && i > 0 {
-			ttl = time.Duration(i) * time.Second
-		}
-	}
-	return force, ttl
-}
 
 func (h *YouTubeHandler) Activity(c *fiber.Ctx) error {
-	force, ttl := h.parseForceTTL(c)
-	data, err := h.usecase.GetActivity(context.Background(), force, ttl)
+	var ctx = c.Context()
+	data, err := h.YotubeUsecase.GetActivity(ctx)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return err
 	}
-	return c.JSON(data)
+	return c.JSON(response.NewSuccessResponse(fiber.StatusOK, data))
 }
 
 func (h *YouTubeHandler) Latest(c *fiber.Ctx) error {
-	force, ttl := h.parseForceTTL(c)
-	data, err := h.usecase.GetLatest(context.Background(), force, ttl)
+	var ctx = c.Context()
+	data, err := h.YotubeUsecase.GetLatest(ctx)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return err
 	}
-	return c.JSON(data)
+	return c.JSON(response.NewSuccessResponse(fiber.StatusOK, data))
 }
 
 func (h *YouTubeHandler) Recent(c *fiber.Ctx) error {
-	force, ttl := h.parseForceTTL(c)
-	data, err := h.usecase.GetRecent(context.Background(), force, ttl)
+	var ctx = c.Context()
+	data, err := h.YotubeUsecase.GetRecent(ctx)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return err
 	}
-	return c.JSON(data)
+	return c.JSON(response.NewSuccessResponse(fiber.StatusOK, data))
 }
 
 func (h *YouTubeHandler) Playlists(c *fiber.Ctx) error {
-	force, ttl := h.parseForceTTL(c)
-	data, err := h.usecase.GetPlaylists(context.Background(), force, ttl)
+	var ctx = c.Context()
+	data, err := h.YotubeUsecase.GetPlaylists(ctx)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return err
 	}
-	return c.JSON(data)
+	return c.JSON(response.NewSuccessResponse(fiber.StatusOK, data))
 }
 
 func (h *YouTubeHandler) PlaylistItems(c *fiber.Ctx) error {
+	var ctx = c.Context()
 	playlistId := c.Query("playlistId")
 	if playlistId == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "playlistId is required"})
+		return c.JSON(response.ErrNotFound)
 	}
-	force, ttl := h.parseForceTTL(c)
-	data, err := h.usecase.GetPlaylistItems(context.Background(), playlistId, force, ttl)
+	data, err := h.YotubeUsecase.GetPlaylistItems(ctx, playlistId)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return err
 	}
-	return c.JSON(data)
+	return c.JSON(response.NewSuccessResponse(fiber.StatusOK, data))
 }
