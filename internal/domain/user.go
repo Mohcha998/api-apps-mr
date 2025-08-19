@@ -29,6 +29,15 @@ type User struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
+type UserToken struct {
+	ID       uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Email     string    `gorm:"not null" json:"email"`
+	Token         string    `gorm:"not null" json:"token"`
+	DateCreated  int64 `json:"date_created"`
+}
+
+type JSONData map[string]interface{}
+
 
 func (user *User) BeforeCreate(tx *gorm.DB) error {
 	user.AccessLevel = "user"
@@ -40,6 +49,8 @@ func (user *User) BeforeCreate(tx *gorm.DB) error {
 }
 
 type UserRepository interface {
+	RandomString(length int64) string
+	CURLEmail(ctx context.Context, url string , user_token *UserToken, name string) (string, error)
 	Create(ctx context.Context, user *User) error
 	Update(ctx context.Context, user *User) error
 	Login(ctx context.Context, user *User) (*User, error)
@@ -57,4 +68,8 @@ type UserUsecase interface {
 
 func (User) TableName() string {
 	return "user"
+}
+
+func (UserToken) TableName() string {
+	return "user_token"
 }
