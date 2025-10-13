@@ -2,6 +2,7 @@ package repository
 
 import (
 	"apps/internal/domain"
+	"apps/internal/infrastructure/cache"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,25 +10,28 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 type youtubeRepository struct {
 	apiKey     string
 	channelID  string
 	httpClient *http.Client
-	redis      *redis.Client
+	cache      *cache.Client
 }
 
-func NewYouTubeRepository(apiKey, channelID string, httpTimeout time.Duration, redis *redis.Client) *youtubeRepository {
+// ✅ huruf besar di "New" supaya bisa diakses dari luar package
+func NewYouTubeRepository(apiKey, channelID string, httpTimeout time.Duration, cache *cache.Client) domain.YoutubeRepository {
 	return &youtubeRepository{
 		apiKey:     apiKey,
 		channelID:  channelID,
 		httpClient: &http.Client{Timeout: httpTimeout},
-		redis:      redis,
+		cache:      cache,
 	}
 }
+
+// =====================================================
+// Implementasi YoutubeRepository interface
+// =====================================================
 
 func (r *youtubeRepository) BuildURL(path string, params map[string]string) string {
 	base := "https://www.googleapis.com/youtube/v3/" + path
@@ -43,15 +47,15 @@ func (r *youtubeRepository) BuildURL(path string, params map[string]string) stri
 }
 
 func (r *youtubeRepository) FetchOrCache(ctx context.Context, cacheKey, reqURL string, ttl time.Duration) (*domain.Youtube, error) {
-	if r.redis != nil {
-		if s, err := r.redis.Get(ctx, cacheKey).Result(); err == nil {
-			var cached *domain.Youtube
-			if err := json.Unmarshal([]byte(s), &cached); err == nil {
-				return cached, nil
-			}
+	// 🔹 Coba ambil dari cache dulu
+	if r.cache != nil {
+		var cached domain.Youtube
+		if err := r.cache.GetJSON(ctx, cacheKey, &cached); err == nil {
+			return &cached, nil
 		}
 	}
 
+	// 🔹 Fetch dari API
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
@@ -73,14 +77,15 @@ func (r *youtubeRepository) FetchOrCache(ctx context.Context, cacheKey, reqURL s
 		return nil, err
 	}
 
-	var data *domain.Youtube
+	var data domain.Youtube
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, err
 	}
 
-	if r.redis != nil {
-		_ = r.redis.Set(ctx, cacheKey, string(body), ttl).Err()
+	// 🔹 Simpan ke Redis
+	if r.cache != nil {
+		_ = r.cache.SetJSON(ctx, cacheKey, data, ttl)
 	}
 
-	return data, nil
+	return &data, nil
 }

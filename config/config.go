@@ -33,10 +33,12 @@ type Mysql struct {
 }
 
 type Redis struct {
-	Host     string
-	Port     string
-	Password string
+    Host     string
+    Port     string
+    Password string
+    DB       int
 }
+
 
 type Jwt struct {
 	SecretKey string
