@@ -19,8 +19,8 @@ type MysqlDBInterface interface {
 	Count(ctx context.Context, model any, total *int64, opts ...FindOption) error
 	CreateInBatches(ctx context.Context, data any, batchSize int) error
 	WithTransaction(function func() error) error
+	Raw(ctx context.Context, dest any, query string, args ...any) error
 
-	// Tambahan untuk repository yang butuh akses langsung ke koneksi GORM
 	Conn() *gorm.DB
 }
 
@@ -77,6 +77,11 @@ func NewMysqlConnection(cfg *config.Config) (*MysqlDB, error) {
 // Create menambahkan satu record baru ke database
 func (d *MysqlDB) Create(ctx context.Context, data any) error {
 	return d.db.WithContext(ctx).Create(data).Error
+}
+
+//Raw Ctx
+func (d *MysqlDB) Raw(ctx context.Context, dest any, query string, args ...any) error {
+    return d.db.WithContext(ctx).Raw(query, args...).Scan(dest).Error
 }
 
 // Update memperbarui record yang sudah ada
