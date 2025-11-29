@@ -13,6 +13,7 @@ type MerchandiseRepository interface {
 	GetKategoriWithProducts(ctx context.Context, kategoriID int) ([]map[string]interface{}, error) // mz / primerry
 	GetByTipe(ctx context.Context, tipeID int) ([]map[string]interface{}, error)
 	GetByID(ctx context.Context, merchID int) ([]domain.Merchandise, error)
+	GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error)
 }
 
 type merchandiseRepo struct {
@@ -23,9 +24,20 @@ func NewMerchandiseRepository(db db.MysqlDBInterface) MerchandiseRepository {
 	return &merchandiseRepo{db: db}
 }
 
-// -----------------------------
-// HELPER FUNCTIONS
-// -----------------------------
+func (r *merchandiseRepo) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
+	var merch []domain.Merchandise
+
+	err := r.db.Conn().
+		WithContext(ctx).
+		Raw(`SELECT * FROM merchandise ORDER BY id DESC`).
+		Scan(&merch).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return merch, nil
+}
 
 func (r *merchandiseRepo) getCategories(ctx context.Context, tipeID int) ([]domain.MerchandiseKategori, error) {
 	var kategori []domain.MerchandiseKategori

@@ -16,6 +16,7 @@ type MerchandiseUsecase interface {
 	GetPrimerry(ctx context.Context) ([]map[string]interface{}, error)
 	FindByTipe(ctx context.Context, id int) ([]map[string]interface{}, error)
 	FindByID(ctx context.Context, id int) ([]domain.Merchandise, error)
+	GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error)
 }
 
 // -----------------------------
@@ -30,6 +31,10 @@ type merchandiseUC struct {
 // -----------------------------
 func NewMerchandiseUsecase(repo repository.MerchandiseRepository) MerchandiseUsecase {
 	return &merchandiseUC{repo: repo}
+}
+
+func (u *merchandiseUC) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
+	return u.repo.GetAllMerchandise(ctx)
 }
 
 // -----------------------------

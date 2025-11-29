@@ -141,32 +141,50 @@ func (d *MysqlDB) Conn() *gorm.DB {
 
 // applyOptions menggabungkan semua opsi query (where, preload, order, dll)
 func (d *MysqlDB) applyOptions(opts ...FindOption) *gorm.DB {
-	query := d.db
-	opt := getOption(opts...)
+    query := d.db
+    opt := getOption(opts...)
 
-	if len(opt.preloads) != 0 {
-		for _, preload := range opt.preloads {
-			query = query.Preload(preload)
-		}
-	}
+    // Preload
+    if len(opt.preloads) != 0 {
+        for _, preload := range opt.preloads {
+            query = query.Preload(preload)
+        }
+    }
 
-	if opt.query != nil {
-		for _, q := range opt.query {
-			query = query.Where(q.Query, q.Args...)
-		}
-	}
+    // Where
+    if opt.query != nil {
+        for _, q := range opt.query {
+            query = query.Where(q.Query, q.Args...)
+        }
+    }
 
-	if opt.order != "" {
-		query = query.Order(opt.order)
-	}
+    // Jika user override order → pakai itu
+    if opt.order != "" {
+        query = query.Order(opt.order)
+    } else if !opt.noOrder {
+        // AUTO DETECT TABLE NAME
+        stmt := &gorm.Statement{DB: d.db}
+        stmt.Parse(query.Statement.Model)
 
-	if opt.offset != 0 {
-		query = query.Offset(opt.offset)
-	}
+        table := stmt.Table
 
-	if opt.limit != 0 {
-		query = query.Limit(opt.limit)
-	}
+        if table == "user" {
+            query = query.Order("id_user")
+        } else {
+            query = query.Order("id")
+        }
+    }
 
-	return query
+    // Offset
+    if opt.offset != 0 {
+        query = query.Offset(opt.offset)
+    }
+
+    // Limit
+    if opt.limit != 0 {
+        query = query.Limit(opt.limit)
+    }
+
+    return query
 }
+

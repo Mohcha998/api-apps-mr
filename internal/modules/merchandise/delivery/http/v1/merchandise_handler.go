@@ -14,6 +14,20 @@ func NewMerchandiseHandler(uc usecase.MerchandiseUsecase) *MerchandiseHandler {
 	return &MerchandiseHandler{uc: uc}
 }
 
+func (h *MerchandiseHandler) AllMerchandise(c *fiber.Ctx) error {
+	res, err := h.uc.GetAllMerchandise(c.Context())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"merchandise": res,
+	})
+}
+
+
 func (h *MerchandiseHandler) GetAll(c *fiber.Ctx) error {
 	res, err := h.uc.GetAll(c.Context())
 	if err != nil {

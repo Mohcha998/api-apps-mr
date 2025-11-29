@@ -19,4 +19,5 @@ func Routes(r fiber.Router, db db.MysqlDBInterface) {
 	group.Get("/primerry", handler.Primerry)
 	group.Get("/bytipe", handler.FindByTipe)
 	group.Get("/byid", handler.FindByID)
+	group.Get("/all", handler.AllMerchandise)
 }
