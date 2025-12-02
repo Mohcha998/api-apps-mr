@@ -12,8 +12,16 @@ import (
 // -----------------------------
 type MerchandiseUsecase interface {
 	GetAll(ctx context.Context) (*domain.MerchandiseAll, error)
+
+	// kategori khusus
 	GetMZ(ctx context.Context) ([]map[string]interface{}, error)
+	GetMrs(ctx context.Context) ([]map[string]interface{}, error)
 	GetPrimerry(ctx context.Context) ([]map[string]interface{}, error)
+
+	// generic
+	GetKategoriWithProducts(ctx context.Context, kategoriIDs []int) ([]map[string]interface{}, error)
+
+	// lainnya
 	FindByTipe(ctx context.Context, id int) ([]map[string]interface{}, error)
 	FindByID(ctx context.Context, id int) ([]domain.Merchandise, error)
 	GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error)
@@ -33,6 +41,9 @@ func NewMerchandiseUsecase(repo repository.MerchandiseRepository) MerchandiseUse
 	return &merchandiseUC{repo: repo}
 }
 
+// -----------------------------
+// GetAllMerchandise
+// -----------------------------
 func (u *merchandiseUC) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
 	return u.repo.GetAllMerchandise(ctx)
 }
@@ -46,15 +57,16 @@ func (u *merchandiseUC) GetAll(ctx context.Context) (*domain.MerchandiseAll, err
 		return nil, err
 	}
 
-	// Mapping semua kategori dan merchandise ke string agar sama seperti CI
+	// Mapping agar konsisten seperti CI
 	for i, t := range result.MerchandiseTipe {
 		var kategoriList []map[string]interface{}
+
 		for _, k := range result.MerchandiseAll {
-			// Pastikan tipe sesuai
 			if fmt.Sprintf("%v", k["id_merchandise_tipe"]) == fmt.Sprintf("%d", t.ID) {
 				kategoriList = append(kategoriList, k)
 			}
 		}
+
 		result.MerchandiseAll[i] = map[string]interface{}{
 			"id_merchandise_tipe":   fmt.Sprintf("%d", t.ID),
 			"name_merchandise_tipe": t.Name,
@@ -62,22 +74,29 @@ func (u *merchandiseUC) GetAll(ctx context.Context) (*domain.MerchandiseAll, err
 		}
 	}
 
-	// Semua merchandise sudah diambil dari repository
 	return &result, nil
 }
 
-// -----------------------------
-// GetMZ (kategori id=5)
-// -----------------------------
 func (u *merchandiseUC) GetMZ(ctx context.Context) ([]map[string]interface{}, error) {
-	return u.repo.GetKategoriWithProducts(ctx, 5)
+	return u.repo.GetKategoriWithProducts(ctx, []int{5})
+}
+
+func (u *merchandiseUC) GetMrs(ctx context.Context) ([]map[string]interface{}, error) {
+	return u.repo.GetKategoriWithProducts(ctx, []int{1, 2, 3})
+}
+
+func (u *merchandiseUC) GetPrimerry(ctx context.Context) ([]map[string]interface{}, error) {
+	return u.repo.GetKategoriWithProducts(ctx, []int{6})
 }
 
 // -----------------------------
-// GetPrimerry (kategori id=6)
+// Generic GetKategoriWithProducts
 // -----------------------------
-func (u *merchandiseUC) GetPrimerry(ctx context.Context) ([]map[string]interface{}, error) {
-	return u.repo.GetKategoriWithProducts(ctx, 6)
+func (u *merchandiseUC) GetKategoriWithProducts(
+	ctx context.Context,
+	kategoriIDs []int,
+) ([]map[string]interface{}, error) {
+	return u.repo.GetKategoriWithProducts(ctx, kategoriIDs)
 }
 
 // -----------------------------

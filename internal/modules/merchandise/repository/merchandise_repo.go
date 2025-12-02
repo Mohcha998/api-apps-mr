@@ -8,22 +8,34 @@ import (
 	"time"
 )
 
+// -----------------------------
+// Interface
+// -----------------------------
 type MerchandiseRepository interface {
 	GetAll(ctx context.Context) (domain.MerchandiseAll, error)
-	GetKategoriWithProducts(ctx context.Context, kategoriID int) ([]map[string]interface{}, error) // mz / primerry
+	GetKategoriWithProducts(ctx context.Context, kategoriIDs []int) ([]map[string]interface{}, error)
 	GetByTipe(ctx context.Context, tipeID int) ([]map[string]interface{}, error)
 	GetByID(ctx context.Context, merchID int) ([]domain.Merchandise, error)
 	GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error)
 }
 
+// -----------------------------
+// Struct
+// -----------------------------
 type merchandiseRepo struct {
 	db db.MysqlDBInterface
 }
 
+// -----------------------------
+// Constructor
+// -----------------------------
 func NewMerchandiseRepository(db db.MysqlDBInterface) MerchandiseRepository {
 	return &merchandiseRepo{db: db}
 }
 
+// -----------------------------
+// GetAllMerchandise
+// -----------------------------
 func (r *merchandiseRepo) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
 	var merch []domain.Merchandise
 
@@ -32,13 +44,12 @@ func (r *merchandiseRepo) GetAllMerchandise(ctx context.Context) ([]domain.Merch
 		Raw(`SELECT * FROM merchandise ORDER BY id DESC`).
 		Scan(&merch).Error
 
-	if err != nil {
-		return nil, err
-	}
-
-	return merch, nil
+	return merch, err
 }
 
+// -----------------------------
+// Helpers
+// -----------------------------
 func (r *merchandiseRepo) getCategories(ctx context.Context, tipeID int) ([]domain.MerchandiseKategori, error) {
 	var kategori []domain.MerchandiseKategori
 	err := r.db.Conn().Raw(
@@ -56,20 +67,19 @@ func (r *merchandiseRepo) getProducts(ctx context.Context, kategoriID int) ([]do
 }
 
 // -----------------------------
-// MAIN FUNCTIONS
+// GetAll (Home)
 // -----------------------------
-
 func (r *merchandiseRepo) GetAll(ctx context.Context) (domain.MerchandiseAll, error) {
 	var result domain.MerchandiseAll
 
-	// 1. Ambil semua tipe merchandise kecuali 5 & 6
 	var tipe []domain.MerchandiseTipe
-	if err := r.db.Conn().Raw(`SELECT * FROM merchandise_tipe WHERE status = 1 AND id NOT IN (5,6)`).Scan(&tipe).Error; err != nil {
+	if err := r.db.Conn().
+		Raw(`SELECT * FROM merchandise_tipe WHERE status = 1 AND id NOT IN (5,6)`).
+		Scan(&tipe).Error; err != nil {
 		return result, err
 	}
 	result.MerchandiseTipe = tipe
 
-	// 2. Mapping tipe -> kategori -> merchandise
 	var list []map[string]interface{}
 	for _, t := range tipe {
 		item := map[string]interface{}{
@@ -79,6 +89,7 @@ func (r *merchandiseRepo) GetAll(ctx context.Context) (domain.MerchandiseAll, er
 
 		kategori, _ := r.getCategories(ctx, t.ID)
 		var kategoriList []map[string]interface{}
+
 		for _, k := range kategori {
 			products, _ := r.getProducts(ctx, k.ID)
 			kategoriList = append(kategoriList, map[string]interface{}{
@@ -87,25 +98,30 @@ func (r *merchandiseRepo) GetAll(ctx context.Context) (domain.MerchandiseAll, er
 				"merchandise":               products,
 			})
 		}
+
 		item["merchandise_kategori"] = kategoriList
 		list = append(list, item)
 	}
+
 	result.MerchandiseAll = list
 
-	// 3. Ambil semua merchandise
 	var merchAll []domain.Merchandise
-	if err := r.db.Conn().Raw(`SELECT * FROM merchandise WHERE status = 1`).Scan(&merchAll).Error; err != nil {
-		return result, err
-	}
-	result.Merchandise = merchAll
+	err := r.db.Conn().
+		Raw(`SELECT * FROM merchandise WHERE status = 1`).
+		Scan(&merchAll).Error
 
-	return result, nil
+	result.Merchandise = merchAll
+	return result, err
 }
 
 // -----------------------------
-// mz() & primerry()
+// GetKategoriWithProducts (MZ / Mrs / Primerry)
 // -----------------------------
-func (r *merchandiseRepo) GetKategoriWithProducts(ctx context.Context, kategoriID int) ([]map[string]interface{}, error) {
+func (r *merchandiseRepo) GetKategoriWithProducts(
+	ctx context.Context,
+	kategoriIDs []int,
+) ([]map[string]interface{}, error) {
+
 	type kategoriRow struct {
 		ID                  int
 		IDMerchandiseTipe   int
@@ -116,38 +132,49 @@ func (r *merchandiseRepo) GetKategoriWithProducts(ctx context.Context, kategoriI
 		NameMerchandiseTipe string
 	}
 
-	var row kategoriRow
+	var rows []kategoriRow
+
 	err := r.db.Conn().Raw(`
-		SELECT mk.id, mk.id_merchandise_tipe, mk.code, mk.name, mk.status, mk.created_date,
-		       mt.name as name_merchandise_tipe
+		SELECT mk.id,
+		       mk.id_merchandise_tipe,
+		       mk.code,
+		       mk.name,
+		       mk.status,
+		       mk.created_date,
+		       mt.name AS name_merchandise_tipe
 		FROM merchandise_kategori mk
 		JOIN merchandise_tipe mt ON mt.id = mk.id_merchandise_tipe
-		WHERE mk.id = ? AND mk.status = 1
-	`, kategoriID).Scan(&row).Error
+		WHERE mk.id IN ?
+		  AND mk.status = 1
+		ORDER BY mk.id ASC
+	`, kategoriIDs).Scan(&rows).Error
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Ambil merchandise
-	products, _ := r.getProducts(ctx, row.ID)
+	var result []map[string]interface{}
 
-	// Mapping ke string agar sama seperti CI
-	data := map[string]interface{}{
-		"id":                    fmt.Sprintf("%d", row.ID),
-		"id_merchandise_tipe":   fmt.Sprintf("%d", row.IDMerchandiseTipe),
-		"code":                  row.Code,
-		"name":                  row.Name,
-		"status":                fmt.Sprintf("%d", row.Status),
-		"created_date":          row.CreatedDate.Format("2006-01-02 15:04:05"),
-		"name_merchandise_tipe": row.NameMerchandiseTipe,
-		"merchandise":           products,
+	for _, row := range rows {
+		products, _ := r.getProducts(ctx, row.ID)
+
+		result = append(result, map[string]interface{}{
+			"id":                    fmt.Sprintf("%d", row.ID),
+			"id_merchandise_tipe":   fmt.Sprintf("%d", row.IDMerchandiseTipe),
+			"code":                  row.Code,
+			"name":                  row.Name,
+			"status":                fmt.Sprintf("%d", row.Status),
+			"created_date":          row.CreatedDate.Format("2006-01-02 15:04:05"),
+			"name_merchandise_tipe": row.NameMerchandiseTipe,
+			"merchandise":           products,
+		})
 	}
 
-	return []map[string]interface{}{data}, nil
+	return result, nil
 }
 
 // -----------------------------
-// findByTipe()
+// FindByTipe
 // -----------------------------
 func (r *merchandiseRepo) GetByTipe(ctx context.Context, tipeID int) ([]map[string]interface{}, error) {
 	kategori, _ := r.getCategories(ctx, tipeID)
@@ -166,10 +193,12 @@ func (r *merchandiseRepo) GetByTipe(ctx context.Context, tipeID int) ([]map[stri
 }
 
 // -----------------------------
-// findByID()
+// FindByID
 // -----------------------------
 func (r *merchandiseRepo) GetByID(ctx context.Context, merchID int) ([]domain.Merchandise, error) {
 	var merch []domain.Merchandise
-	err := r.db.Conn().Raw(`SELECT * FROM merchandise WHERE id = ? AND status = 1`, merchID).Scan(&merch).Error
+	err := r.db.Conn().
+		Raw(`SELECT * FROM merchandise WHERE id = ? AND status = 1`, merchID).
+		Scan(&merch).Error
 	return merch, err
 }
