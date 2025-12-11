@@ -21,30 +21,39 @@ func NewBirdtestRepository(db db.MysqlDBInterface) BirdtestRepository {
 }
 
 func (r *birdtestRepository) UpdateStatus(ctx context.Context, userID int) error {
-	result := r.db.Conn().WithContext(ctx).
+	// 1. Cek apakah user ada
+	var count int64
+	err := r.db.Conn().WithContext(ctx).
 		Table("user").
 		Where("id_user = ?", userID).
-		Update("is_birdtest", 1)
+		Count(&count).Error
 
-	if result.Error != nil {
-		return result.Error
+	if err != nil {
+		return err
 	}
 
-	if result.RowsAffected == 0 {
+	if count == 0 {
 		return errors.New("user tidak ditemukan")
+	}
+
+	err = r.db.Conn().WithContext(ctx).
+		Table("user").
+		Where("id_user = ?", userID).
+		UpdateColumn("is_birdtest", 1).Error
+
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
-
-
 
 func (r *birdtestRepository) GetStatusByEmail(ctx context.Context, email string) (*domain.BirdtestStatus, error) {
 	var user domain.BirdtestUser
 
 	err := r.db.FindOne(ctx, &user,
 		db.WithQuery(db.NewQuery("email = ?", email)),
-		db.WithoutOrder(), 
+		db.WithoutOrder(),
 	)
 	if err != nil {
 		return nil, err
@@ -54,4 +63,3 @@ func (r *birdtestRepository) GetStatusByEmail(ctx context.Context, email string)
 		IsBirdtest: user.IsBirdtest,
 	}, nil
 }
-

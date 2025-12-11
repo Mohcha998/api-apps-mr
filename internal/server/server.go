@@ -8,6 +8,7 @@ import (
 	adsRoutes "apps/internal/modules/ads/delivery/http/v1"
 	articleRoutes "apps/internal/modules/article/delivery/http/v1"
 	birdtestRoutes "apps/internal/modules/birdtest/delivery/http/v1"
+	galleryRoutes "apps/internal/modules/gallery/delivery/http/v1"
 	merchRoutes "apps/internal/modules/merchandise/delivery/http/v1"
 	quotesRoutes "apps/internal/modules/quotes/delivery/http/v1"
 	resourceRoutes "apps/internal/modules/resource/delivery/http/v1"
@@ -82,6 +83,7 @@ func NewHttpServer(
 	versionRoutes.Routes(v1, cfg, db)
 	merchRoutes.Routes(v1, db)
 	birdtestRoutes.Routes(v1, cfg, db)
+	galleryRoutes.Routes(v1, db)
 
 	return srv
 }

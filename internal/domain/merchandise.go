@@ -28,7 +28,7 @@ type MerchandiseKategori struct {
 	Name                string        `gorm:"column:name;size:255" json:"name"`
 	Status              int           `gorm:"column:status" json:"status"`
 	CreatedDate         time.Time     `gorm:"column:created_date" json:"created_date"`
-	NameMerchandiseTipe string        `gorm:"-" json:"name_merchandise_tipe"` // field tambahan untuk join
+	NameMerchandiseTipe string        `gorm:"-" json:"name_merchandise_tipe"`
 	Merchandise         []Merchandise `gorm:"-" json:"merchandise,omitempty"`
 }
 
@@ -50,6 +50,8 @@ type Merchandise struct {
 	RedirectLink          string    `gorm:"column:redirect_link;size:255" json:"redirect_link"`
 	LinkNoPayment         string    `gorm:"column:link_no_payment;size:255" json:"link_no_payment"`
 	CtaBtn                int       `gorm:"column:cta_btn" json:"cta_btn"`
+	Harga                 int       `gorm:"column:harga" json:"harga"`
+	HargaCoret            int       `gorm:"column:harga_coret" json:"harga_coret"`
 	Status                int       `gorm:"column:status" json:"status"`
 	CreatedDate           time.Time `gorm:"column:created_date" json:"created_date"`
 }
