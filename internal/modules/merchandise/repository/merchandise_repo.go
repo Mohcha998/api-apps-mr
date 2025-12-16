@@ -2,6 +2,7 @@ package repository
 
 import (
 	"apps/internal/domain"
+	"apps/internal/infrastructure/cache"
 	"apps/internal/infrastructure/db"
 	"context"
 	"fmt"
@@ -23,37 +24,67 @@ type MerchandiseRepository interface {
 // Struct
 // -----------------------------
 type merchandiseRepo struct {
-	db db.MysqlDBInterface
+	db    db.MysqlDBInterface
+	cache *cache.Client
 }
 
 // -----------------------------
 // Constructor
 // -----------------------------
-func NewMerchandiseRepository(db db.MysqlDBInterface) MerchandiseRepository {
-	return &merchandiseRepo{db: db}
+func NewMerchandiseRepository(
+	db db.MysqlDBInterface,
+	cache *cache.Client,
+) MerchandiseRepository {
+	return &merchandiseRepo{
+		db:    db,
+		cache: cache,
+	}
+}
+
+// -----------------------------
+// Cache Helpers
+// -----------------------------
+func merchKey(key string) string {
+	return "merchandise:" + key
+}
+
+func merchTTL() time.Duration {
+	return 24 * time.Hour
 }
 
 // -----------------------------
 // GetAllMerchandise
 // -----------------------------
 func (r *merchandiseRepo) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
-	var merch []domain.Merchandise
+	cacheKey := merchKey("all")
+	var cached []domain.Merchandise
 
+	if err := r.cache.GetJSON(ctx, cacheKey, &cached); err == nil && len(cached) > 0 {
+		return cached, nil
+	}
+
+	var merch []domain.Merchandise
 	err := r.db.Conn().
 		WithContext(ctx).
 		Raw(`SELECT * FROM merchandise ORDER BY id DESC`).
 		Scan(&merch).Error
 
-	return merch, err
+	if err != nil {
+		return nil, err
+	}
+
+	_ = r.cache.SetJSON(ctx, cacheKey, merch, merchTTL())
+	return merch, nil
 }
 
 // -----------------------------
-// Helpers
+// Helpers (DB ONLY)
 // -----------------------------
 func (r *merchandiseRepo) getCategories(ctx context.Context, tipeID int) ([]domain.MerchandiseKategori, error) {
 	var kategori []domain.MerchandiseKategori
 	err := r.db.Conn().Raw(
-		`SELECT * FROM merchandise_kategori WHERE id_merchandise_tipe = ? AND status = 1`, tipeID,
+		`SELECT * FROM merchandise_kategori WHERE id_merchandise_tipe = ? AND status = 1`,
+		tipeID,
 	).Scan(&kategori).Error
 	return kategori, err
 }
@@ -61,7 +92,8 @@ func (r *merchandiseRepo) getCategories(ctx context.Context, tipeID int) ([]doma
 func (r *merchandiseRepo) getProducts(ctx context.Context, kategoriID int) ([]domain.Merchandise, error) {
 	var merch []domain.Merchandise
 	err := r.db.Conn().Raw(
-		`SELECT * FROM merchandise WHERE id_merchandise_kategori = ? AND status = 1`, kategoriID,
+		`SELECT * FROM merchandise WHERE id_merchandise_kategori = ? AND status = 1`,
+		kategoriID,
 	).Scan(&merch).Error
 	return merch, err
 }
@@ -71,6 +103,11 @@ func (r *merchandiseRepo) getProducts(ctx context.Context, kategoriID int) ([]do
 // -----------------------------
 func (r *merchandiseRepo) GetAll(ctx context.Context) (domain.MerchandiseAll, error) {
 	var result domain.MerchandiseAll
+	cacheKey := merchKey("home")
+
+	if err := r.cache.GetJSON(ctx, cacheKey, &result); err == nil {
+		return result, nil
+	}
 
 	var tipe []domain.MerchandiseTipe
 	if err := r.db.Conn().
@@ -106,21 +143,30 @@ func (r *merchandiseRepo) GetAll(ctx context.Context) (domain.MerchandiseAll, er
 	result.MerchandiseAll = list
 
 	var merchAll []domain.Merchandise
-	err := r.db.Conn().
+	_ = r.db.Conn().
 		Raw(`SELECT * FROM merchandise WHERE status = 1`).
 		Scan(&merchAll).Error
 
 	result.Merchandise = merchAll
-	return result, err
+
+	_ = r.cache.SetJSON(ctx, cacheKey, result, merchTTL())
+	return result, nil
 }
 
 // -----------------------------
-// GetKategoriWithProducts (MZ / Mrs / Primerry)
+// GetKategoriWithProducts
 // -----------------------------
 func (r *merchandiseRepo) GetKategoriWithProducts(
 	ctx context.Context,
 	kategoriIDs []int,
 ) ([]map[string]interface{}, error) {
+
+	cacheKey := merchKey(fmt.Sprintf("kategori:%v", kategoriIDs))
+	var cached []map[string]interface{}
+
+	if err := r.cache.GetJSON(ctx, cacheKey, &cached); err == nil {
+		return cached, nil
+	}
 
 	type kategoriRow struct {
 		ID                  int
@@ -154,7 +200,6 @@ func (r *merchandiseRepo) GetKategoriWithProducts(
 	}
 
 	var result []map[string]interface{}
-
 	for _, row := range rows {
 		products, _ := r.getProducts(ctx, row.ID)
 
@@ -170,13 +215,21 @@ func (r *merchandiseRepo) GetKategoriWithProducts(
 		})
 	}
 
+	_ = r.cache.SetJSON(ctx, cacheKey, result, merchTTL())
 	return result, nil
 }
 
 // -----------------------------
-// FindByTipe
+// GetByTipe
 // -----------------------------
 func (r *merchandiseRepo) GetByTipe(ctx context.Context, tipeID int) ([]map[string]interface{}, error) {
+	cacheKey := merchKey(fmt.Sprintf("tipe:%d", tipeID))
+	var cached []map[string]interface{}
+
+	if err := r.cache.GetJSON(ctx, cacheKey, &cached); err == nil {
+		return cached, nil
+	}
+
 	kategori, _ := r.getCategories(ctx, tipeID)
 	var list []map[string]interface{}
 
@@ -189,16 +242,30 @@ func (r *merchandiseRepo) GetByTipe(ctx context.Context, tipeID int) ([]map[stri
 		})
 	}
 
+	_ = r.cache.SetJSON(ctx, cacheKey, list, merchTTL())
 	return list, nil
 }
 
 // -----------------------------
-// FindByID
+// GetByID
 // -----------------------------
 func (r *merchandiseRepo) GetByID(ctx context.Context, merchID int) ([]domain.Merchandise, error) {
+	cacheKey := merchKey(fmt.Sprintf("id:%d", merchID))
+	var cached []domain.Merchandise
+
+	if err := r.cache.GetJSON(ctx, cacheKey, &cached); err == nil && len(cached) > 0 {
+		return cached, nil
+	}
+
 	var merch []domain.Merchandise
 	err := r.db.Conn().
 		Raw(`SELECT * FROM merchandise WHERE id = ? AND status = 1`, merchID).
 		Scan(&merch).Error
-	return merch, err
+
+	if err != nil {
+		return nil, err
+	}
+
+	_ = r.cache.SetJSON(ctx, cacheKey, merch, merchTTL())
+	return merch, nil
 }

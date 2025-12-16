@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"apps/internal/infrastructure/cache"
 	"apps/internal/infrastructure/db"
 	"apps/internal/modules/merchandise/repository"
 	"apps/internal/modules/merchandise/usecase"
@@ -8,8 +9,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Routes(r fiber.Router, db db.MysqlDBInterface) {
-	repo := repository.NewMerchandiseRepository(db)
+func Routes(
+	r fiber.Router,
+	db db.MysqlDBInterface,
+	cache *cache.Client,
+) {
+	repo := repository.NewMerchandiseRepository(db, cache)
 	uc := usecase.NewMerchandiseUsecase(repo)
 	handler := NewMerchandiseHandler(uc)
 

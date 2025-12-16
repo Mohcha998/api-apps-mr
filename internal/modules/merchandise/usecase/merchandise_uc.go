@@ -42,22 +42,19 @@ func NewMerchandiseUsecase(repo repository.MerchandiseRepository) MerchandiseUse
 }
 
 // -----------------------------
-// GetAllMerchandise
+// Usecase Methods
 // -----------------------------
 func (u *merchandiseUC) GetAllMerchandise(ctx context.Context) ([]domain.Merchandise, error) {
 	return u.repo.GetAllMerchandise(ctx)
 }
 
-// -----------------------------
-// GetAll
-// -----------------------------
 func (u *merchandiseUC) GetAll(ctx context.Context) (*domain.MerchandiseAll, error) {
 	result, err := u.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Mapping agar konsisten seperti CI
+	// Mapping agar konsisten seperti CI lama
 	for i, t := range result.MerchandiseTipe {
 		var kategoriList []map[string]interface{}
 
@@ -89,9 +86,6 @@ func (u *merchandiseUC) GetPrimerry(ctx context.Context) ([]map[string]interface
 	return u.repo.GetKategoriWithProducts(ctx, []int{6})
 }
 
-// -----------------------------
-// Generic GetKategoriWithProducts
-// -----------------------------
 func (u *merchandiseUC) GetKategoriWithProducts(
 	ctx context.Context,
 	kategoriIDs []int,
@@ -99,16 +93,10 @@ func (u *merchandiseUC) GetKategoriWithProducts(
 	return u.repo.GetKategoriWithProducts(ctx, kategoriIDs)
 }
 
-// -----------------------------
-// FindByTipe
-// -----------------------------
 func (u *merchandiseUC) FindByTipe(ctx context.Context, id int) ([]map[string]interface{}, error) {
 	return u.repo.GetByTipe(ctx, id)
 }
 
-// -----------------------------
-// FindByID
-// -----------------------------
 func (u *merchandiseUC) FindByID(ctx context.Context, id int) ([]domain.Merchandise, error) {
 	return u.repo.GetByID(ctx, id)
 }

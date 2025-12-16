@@ -81,9 +81,9 @@ func NewHttpServer(
 	resourceRoutes.Routes(v1, cfg, db, redis)
 	adsRoutes.Routes(v1, cfg, db)
 	versionRoutes.Routes(v1, cfg, db)
-	merchRoutes.Routes(v1, db)
+	merchRoutes.Routes(v1, db, redis)
 	birdtestRoutes.Routes(v1, cfg, db)
-	galleryRoutes.Routes(v1, db)
+	galleryRoutes.Routes(v1, db, redis)
 
 	return srv
 }
